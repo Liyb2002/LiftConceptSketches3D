@@ -13,6 +13,10 @@ from rdp import rdp
 from interval import interval
 import networkx as nx
 
+
+def are_coords_close(coord1, coord2, tolerance=1e-5):
+    return abs(coord1.x - coord2.x) < tolerance and abs(coord1.y - coord2.y) < tolerance
+
 # fetches only the 2D information
 def convert_strokes_topology_to_strokes_array(strokes_topology, three_d=0, use_rdp=True):
     strokes_array = []
@@ -94,10 +98,10 @@ def is_tangential(l1, l2, acceptance_rate=0.3, acc_radius=-1.0, angle=0.95):
         q_coords = np.array(q)
         q_prim_coords = np.array(q_prim)
 
-        if np.all(np.isclose(p,p_prim)) or np.all(np.isclose(q,q_prim)):
+        if are_coords_close(p, p_prim) or are_coords_close(q, q_prim):
             continue
-        t1 = p_prim_coords - p_coords
-        t2 = q_prim_coords - q_coords
+        t1 = [p_prim.x - p.x, p_prim.y - p.y]
+        t2 = [q_prim.x - q.x, q_prim.y - q.y]
         cos_alpha = np.dot(t1, t2)/(np.linalg.norm(t1)*np.linalg.norm(t2))
         if cos_alpha > angle:
             tangential_score += 1
@@ -121,8 +125,10 @@ def is_tangential_extended(l1, l2, acceptance_rate=0.3):
         l2_closest_point = l2_end_point
         l2_farthest_point = l2_start_point
     extension_vec = np.array(l2_closest_point) - np.array(l2_farthest_point)
-    l2_extended = shapely.geometry.LineString([extension_vec + l2_closest_point,
-                                              l2_farthest_point])
+
+    extended_point_coords = (l2_closest_point.x + extension_vec.x, l2_closest_point.y + extension_vec.y)
+
+    l2_extended = LineString([extended_point_coords, (l2_farthest_point.x, l2_farthest_point.y)])
     return is_tangential(l1, l2_extended, acceptance_rate)
 
 def update_strokes_indices(intersections, strokes_topology):
@@ -225,7 +231,16 @@ def substring(geom, start_dist_real, end_dist_real, normalized=False):
     if start_dist > end_dist:
         vertex_list = reversed(vertex_list)
 
-    return LineString(vertex_list)
+    normalized_coords = []
+    for item in coords:
+        if isinstance(item, shapely.geometry.Point):
+            normalized_coords.append((item.x, item.y))
+        else:
+            normalized_coords.append(item)
+
+    line_string = LineString(normalized_coords)
+    
+    return line_string
 
 def get_3d_line_ends_in_correct_order(start_point, straight_3d_line, cam_params):
     start_point_3d = line_interpolate(straight_3d_line, 0.0)
@@ -294,9 +309,13 @@ def fill_in_cam_params_inv_mats(cam_params, VERBOSE=0):
 
 # expected value between [0.0, 1.0]
 def line_interpolate(l, t, normalized=True):
-    p0 = np.array(l)[0]
-    p1 = np.array(l)[-1]
-    p_interp = p0 + t*(p1-p0)
+    coords = list(l.coords)
+
+    p0 = np.array(coords[0])  
+    p1 = np.array(coords[-1])  
+
+    p_interp = p0 + t * (p1 - p0)
+
     return shapely.geometry.Point(p_interp)
 
 def scale_bbox(bbox, scale_factor):
@@ -364,7 +383,18 @@ def get_closest_param_bezier(cps, p):
             b_k = binom(3, k) * (t_i ** k) * (1.0 - t_i) ** (3 - k)
             b_k *= cps[k]
             b_t_i += b_k
-        distances[i] = np.linalg.norm(p - b_t_i)
+        
+        b_t_i_x = b_t_i[0]
+        b_t_i_y = b_t_i[1]
+        p_x = p.item().x
+        p_y = p.item().y
+
+        p_array = np.array([p_x, p_y])
+        b_t_i_array = np.array([b_t_i_x, b_t_i_y])
+
+        distance = np.linalg.norm(p_array - b_t_i_array)
+        distances[i] = np.abs(distance)
+
     return t_potentials[np.argmin(distances)], np.min(distances)
 
 def get_closest_param_beziers(beziers, p):
@@ -969,7 +999,7 @@ def cluster_intersecting_strokes_networkx_v2(stroke_indices, strokes_topology):
         for j in range(len(stroke_indices)):
             if adj_mat[i][j] == 1:
                 adj_mat[j][i] = 1
-    adj_graph = nx.from_numpy_matrix(adj_mat)
+    adj_graph = nx.from_numpy_array(adj_mat)
     clusters = [sorted(stroke_indices[list(c)].tolist())
                 for c in sorted(nx.connected_components(adj_graph), key=len, reverse=True)]
     clusters = sorted(clusters, key=first_elem)

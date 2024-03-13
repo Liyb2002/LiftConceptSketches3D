@@ -47,16 +47,17 @@ def compute_curve_2D_intersections_single_curve(curve_idx,
             for intersected_line_idx, intersected_line in enumerate(
                     intersection_point_list):
                 tmp_line_straight = shapely.geometry.LineString(
-                    intersected_line)
+                    intersected_line.item())
                 # intersected line segments on the curved line
                 prior_intersection_point_list = tools.get_intersection_list(
                     tmp_line_straight,
                     curved_line, acc_radius)
                 for p_idx, p in enumerate(prior_intersection_point_list):
                     # check if the two lines are tangential
-                    if len(p) == 0:
+                    coordinates = list(p.item().coords)
+                    if len(coordinates) == 0:
                         continue
-                    tmp_line_curved = shapely.geometry.LineString(p)
+                    tmp_line_curved = shapely.geometry.LineString(p.item())
                     is_tangential = tools.is_tangential(
                         tmp_line_curved, tmp_line_straight,
                         tangent_sensibility)
@@ -195,17 +196,20 @@ def compute_curve_2D_intersections_single_curve_input_linestring_simplified(curv
             # get corresponding parts from the current curved stroke
             for intersected_line_idx, intersected_line in enumerate(
                     intersection_point_list):
+
                 tmp_line_straight = shapely.geometry.LineString(
-                    intersected_line)
+                    intersected_line.item() )
                 # intersected line segments on the curved line
                 prior_intersection_point_list = tools.get_intersection_list(
                     tmp_line_straight,
                     curved_line, acc_radius)
+                
                 for p_idx, p in enumerate(prior_intersection_point_list):
                     # check if the two lines are tangential
-                    if len(p) == 0:
+                    coordinates = list(p.item().coords)
+                    if len(coordinates) == 0:
                         continue
-                    tmp_line_curved = shapely.geometry.LineString(p)
+                    tmp_line_curved = shapely.geometry.LineString(p.item())
                     is_tangential = tools.is_tangential(
                         tmp_line_curved, tmp_line_straight,
                         tangent_sensibility)

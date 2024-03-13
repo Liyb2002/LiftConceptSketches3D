@@ -8,14 +8,22 @@ def iter_lin_search(p_2d, line_3d, cam_params):
     stepsize = 0.001
     t_potentials = np.arange(0.0, 1.0+stepsize, stepsize)
     probes = np.zeros([t_potentials.shape[0], 3])
-    probes[:] = line_3d_coords[-1] - line_3d_coords[0]
+    
+    line_3d_coords = list(line_3d_coords.item().coords)
+    start_point = np.array(line_3d_coords[0]) 
+    end_point = np.array(line_3d_coords[-1])  
+
+    direction_vector = end_point - start_point
+    probes[:] = direction_vector
+
     t_potentials = np.reshape(t_potentials, [t_potentials.shape[0], 1])
     probes *= t_potentials
     probes[:] += line_3d_coords[0]
 
     projected_probes = np.array(tools.project_3d_stroke(probes, cam_params))
+    p_2d_array = np.array([p_2d.x, p_2d.y])
 
-    distances = np.linalg.norm(projected_probes[:] - p_2d, axis=1)
+    distances = np.linalg.norm(projected_probes - p_2d_array, axis=1)
 
     return t_potentials[np.argmin(distances)]
 
@@ -57,8 +65,11 @@ def get_3d_constraints_single_curve(curve_intersections,
         t_start = iter_lin_search(start_point_2d, line_3d, cam_params)
         t_end = iter_lin_search(end_point_2d, line_3d, cam_params)
 
-        p0 = np.array(tools.line_interpolate(line_3d, t_start))
-        p1 = np.array(tools.line_interpolate(line_3d, t_end))
+        p0_point = tools.line_interpolate(line_3d, t_start)
+        p1_point = tools.line_interpolate(line_3d, t_end)
+
+        p0 = (p0_point.x, p0_point.y, p0_point.z)
+        p1 = (p1_point.x, p1_point.y, p1_point.z)
 
         line_segment_3d = shapely.geometry.LineString([p0, p1])
 
@@ -67,7 +78,7 @@ def get_3d_constraints_single_curve(curve_intersections,
             line_segment_3d, new_length = tools.line_substring_points(line_3d,
                 start_point_2d, end_point_2d, cam_params)
 
-        if len(np.array(line_segment_3d)) > 0:
+        if len(line_segment_3d.coords) > 0:
             # remove zero-length intersections
             keep_intersections.append(inter_idx)
 

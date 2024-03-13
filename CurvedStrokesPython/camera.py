@@ -1,5 +1,6 @@
 import numpy as np
 import tools_3d
+import shapely
 
 class Camera:
 	def __init__(self, proj_mat=None, focal_dist=None, fov=None, view_dir=None,
@@ -92,7 +93,10 @@ class Camera:
 											cylinder_radius) for p in polyline]
 
 	def lift_point(self, p, lambda_val):
-		u, v = p[0], p[1]
+		if isinstance(p, np.ndarray) and p.shape == ():
+			u, v = p.item().x, p.item().y
+		else:
+			u, v = p[0], p[1]
 
 		p_cam = np.dot(self.k_inv, np.array([[u], [v], [1.0]]))
 		p_cam *= lambda_val
